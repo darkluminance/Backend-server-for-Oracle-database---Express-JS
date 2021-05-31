@@ -1,4 +1,4 @@
-1. Create a folder and put the **index.js** file there
+1. Create a folder and put the files there
 
 2. Open cmd in the folder by typing **cmd** from the location bar on the top of the file explorer
 
