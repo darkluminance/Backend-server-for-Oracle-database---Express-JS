@@ -21,7 +21,11 @@ app.use(cors());
 
 //Will convert all coming data into JSON
 app.use(express.json());
-
+//
+//
+//
+//
+//
 //Get user data	-------> req is the request, res is the response we'll send back to the browser and uid is the userid whose
 //data we'll search
 async function getUserData(req, res, uid) {
@@ -47,7 +51,9 @@ async function getUserData(req, res, uid) {
 		res.status(200).send(result.rows); //Sends back the data with success status 200
 	}
 }
-
+//
+//
+//
 //Get user id 	-------> req is the request, res is the response we'll send back to the browser, un is the username
 async function getUserID(req, res, un) {
 	const query = `SELECT u_id FROM Userr WHERE user_name = '${un}'`;
@@ -71,7 +77,9 @@ async function getUserID(req, res, un) {
 		res.status(200).send(result.rows[0]);
 	}
 }
-
+//
+//
+//
 //Insert new User data into the database
 async function sendUserData(req, res, data) {
 	const query = `insert into userr (u_id,admin_id,Name_Fname,Name_Lname,dob,Phone_No, user_name) values ('${data[0]}','${data[1]}','${data[2]}','${data[3]}',to_date('${data[4]}','dd-mon-yyyy'),'${data[5]}', '${data[6]}')`;
@@ -91,14 +99,55 @@ async function sendUserData(req, res, data) {
 		res.status(200).send(result);
 	}
 }
+//
+//
+//
+//Update user's current location
+async function updateUserLocation(req, res, data) {
+	let query = '';
 
+	//Set query based on user types
+	if (data[1] === 'C') {
+		query = `
+				UPDATE clientt
+				SET C_Location_X = ${data[2]},
+						C_Location_Y = ${data[3]}
+				WHERE u_id = '${data[0]}'
+		`;
+	} else if (data[1] === 'D') {
+		query = `
+			UPDATE driver
+			SET DR_Location_X = ${data[2]},
+					DR_Location_Y = ${data[3]}
+			WHERE u_id = '${data[0]}'
+	`;
+	}
+
+	try {
+		connection = await oracledb.getConnection(dbconnection);
+
+		result = await connection.execute(query, {}, { autoCommit: true });
+
+		// console.log('Connected');
+	} catch (error) {
+	} finally {
+		if (connection) {
+			await connection.close();
+			// console.log('Connection ended');
+		}
+		res.status(200).send(result);
+	}
+}
+//
+//
+//
 //Send list of drivers within the range
 // 	-------> req is the request, res is the response we'll send back to the browser
 // ----> lat and lng are the lattitude and longitude of the current location of the user
 async function getDriversWithinRange(req, res, lat, lng) {
 	const query = `Select D.U_ID, D.Dr_Location_X, D.Dr_Location_Y
 	From driver D 
-	Where 3963.0 * acos((sin(${lng}/ 57.29577951) * sin(D.Dr_Location_Y/ 57.29577951)) + cos(${lng}/ 57.29577951) * cos(D.Dr_Location_Y/ 57.29577951) * cos((D.Dr_Location_X/ 57.29577951) - (${lat}/ 57.29577951))) <= 0.5`;
+	Where 3963.0 * acos((sin(${lng}/ 57.29577951) * sin(D.Dr_Location_Y/ 57.29577951)) + cos(${lng}/ 57.29577951) * cos(D.Dr_Location_Y/ 57.29577951) * cos((D.Dr_Location_X/ 57.29577951) - (${lat}/ 57.29577951))) <= 1`;
 	//The above formula checks whether the geographical distance between user and location of any driver belongs to the range
 
 	// console.log(query);
@@ -115,7 +164,11 @@ async function getDriversWithinRange(req, res, lat, lng) {
 		res.status(200).send(result);
 	}
 }
-
+//
+//
+//
+//
+//
 //--------- REQUESTS------------------
 
 //POST request --> which means calls for inserting into database
@@ -133,12 +186,39 @@ app.post('/userr', (req, res) => {
 	const dob = data.dob;
 	const phn = data.Phone_No;
 	const uname = data.user_name;
+	const pass = data.password;
 
-	const senddata = [uid, adminid, fname, lname, dob, phn, uname];
+	const senddata = [uid, adminid, fname, lname, dob, phn, uname, pass];
 
 	sendUserData(req, res, senddata);
 });
 
+//POST request for updating user's current location
+app.post('/updateuserlocation', (req, res) => {
+	const data = req.body;
+
+	const uid = data.u_id;
+	const usertype = data.user_typ;
+	var lat = 0;
+	var lng = 0;
+
+	if (usertype === 'C') {
+		lat = data.C_Location_X;
+		lng = data.C_Location_Y;
+	} else if (usertype === 'D') {
+		lat = data.DR_Location_X;
+		lng = data.DR_Location_Y;
+	}
+
+	const senddata = [uid, usertype, lat, lng];
+	// console.log('Post req got from user..', senddata);
+
+	updateUserLocation(req, res, senddata);
+});
+//
+//
+//
+//
 //GET request for getting list of drivers arouund a certain range from the user
 //Here ':' colon sign beside the word means it's a variable
 //So any data in this field will be stored in lat variable
@@ -150,6 +230,8 @@ app.get('/getdriverlocation/:lat/:lng', (req, res) => {
 
 	getDriversWithinRange(req, res, lattitude, longitude);
 });
+
+//GET request for getting driver data
 
 //GET request --> which means calls for getting data from the database
 //Fetching user data where user id is given
@@ -165,6 +247,29 @@ app.get('/getuserid/:name', (request, response) => {
 	console.log('Get request obtained', usname);
 
 	getUserID(request, response, usname);
+	//console.log('Data obtained from the user', response);
+});
+
+async function abcd(req, res) {
+	const query = `select * from userr`;
+
+	try {
+		connection = await oracledb.getConnection(dbconnection);
+		console.log('Connected');
+
+		result = await connection.execute(query, {}, { autoCommit: true });
+	} catch (error) {
+	} finally {
+		if (connection) {
+			await connection.close();
+			console.log('Connection ended');
+		}
+		res.status(200).send(result);
+	}
+}
+
+app.get('/getu', (req, res) => {
+	abcd(req, res);
 });
 
 //Listen to the specific port to connect to the server
