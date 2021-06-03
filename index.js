@@ -8,6 +8,7 @@ const app = express();
 const oracledb = require('oracledb'); //Import oracle library
 const port = 5000; //Set backend server port number
 const cors = require('cors'); //CORS allows requests from browser to be allowed
+const { Server } = require('socket.io'); //Import socket.io for websockets i.e Client to Client com
 
 //The credentials for oracle database
 const dbconnection = {
@@ -40,7 +41,63 @@ async function getUserData(req, res, uid) {
 		//Executes the query and stores the obtained data
 		result = await connection.execute(query);
 
-		console.log('Connected');
+		console.log('Connected to get user data');
+	} catch (error) {
+		//If any error occurs while connecting or fetching data
+	} finally {
+		if (connection) {
+			await connection.close(); //Closes the connection
+			console.log('Connection ended');
+		}
+		res.status(200).send(result.rows); //Sends back the data with success status 200
+	}
+}
+//
+//
+//
+//Get cliver data	-------> req is the request, res is the response we'll send back to the browser and uid is the userid whose
+//data we'll search
+async function getCliverData(req, res, uid) {
+	//Oracle query for getting data from userr table
+	const query = `SELECT u_id, total_rating, total_trips from Cliver WHERE u_id = '${uid}'`;
+	// console.log(query);
+
+	try {
+		//Try to perform a connection to the oracle database using the credentials above
+		connection = await oracledb.getConnection(dbconnection);
+
+		//Executes the query and stores the obtained data
+		result = await connection.execute(query);
+
+		console.log('Connected to get cliver data');
+	} catch (error) {
+		//If any error occurs while connecting or fetching data
+	} finally {
+		if (connection) {
+			await connection.close(); //Closes the connection
+			console.log('Connection ended');
+		}
+		res.status(200).send(result.rows); //Sends back the data with success status 200
+	}
+}
+//
+//
+//
+//Get driver data	-------> req is the request, res is the response we'll send back to the browser and uid is the userid whose
+//data we'll search
+async function getDriverData(req, res, uid) {
+	//Oracle query for getting data from userr table
+	const query = `SELECT u_id, total_earning from Driver WHERE u_id = '${uid}'`;
+	// console.log(query);
+
+	try {
+		//Try to perform a connection to the oracle database using the credentials above
+		connection = await oracledb.getConnection(dbconnection);
+
+		//Executes the query and stores the obtained data
+		result = await connection.execute(query);
+
+		console.log('Connected to get driver data');
 	} catch (error) {
 		//If any error occurs while connecting or fetching data
 	} finally {
@@ -66,7 +123,7 @@ async function getUserID(req, res, un) {
 
 		//if (result.rows[0] == null) throw 'Data not found';
 
-		console.log('Connected');
+		console.log('Connected to get user id');
 	} catch (error) {
 		// res.status(404).send('Error occurred! ' + error.message);
 	} finally {
@@ -89,7 +146,7 @@ async function sendUserData(req, res, data) {
 
 		result = await connection.execute(query, {}, { autoCommit: true });
 
-		console.log('Connected');
+		console.log('Connected to insert user data');
 	} catch (error) {
 	} finally {
 		if (connection) {
@@ -128,7 +185,7 @@ async function updateUserLocation(req, res, data) {
 
 		result = await connection.execute(query, {}, { autoCommit: true });
 
-		// console.log('Connected');
+		console.log(`Connected to update user location ${data}`);
 	} catch (error) {
 	} finally {
 		if (connection) {
@@ -156,10 +213,13 @@ async function getDriversWithinRange(req, res, lat, lng) {
 		connection = await oracledb.getConnection(dbconnection);
 
 		result = await connection.execute(query);
+
+		// console.log('Connected to get drivers within range of the user');
 	} catch (error) {
 	} finally {
 		if (connection) {
 			await connection.close();
+			// console.log('Connection ended');
 		}
 		res.status(200).send(result);
 	}
@@ -232,6 +292,18 @@ app.get('/getdriverlocation/:lat/:lng', (req, res) => {
 });
 
 //GET request for getting driver data
+app.get('/getdriverdata/:id', (request, response) => {
+	const usid = request.params.id; //ID is the user id using which we'll search the database
+
+	getDriverData(request, response, usid);
+});
+
+//GET request for getting cliver data
+app.get('/getcliverdata/:id', (request, response) => {
+	const usid = request.params.id; //ID is the user id using which we'll search the database
+
+	getCliverData(request, response, usid);
+});
 
 //GET request --> which means calls for getting data from the database
 //Fetching user data where user id is given
@@ -280,6 +352,12 @@ app.get('/getu', (req, res) => {
 //GET request ---> Which means frontend is asking for data
 //POST request ----> The frontend is sending data or storage
 //The perform the required tasks based on the url and functions called from them
-app.listen(port, () => {
+const server = app.listen(port, () => {
 	console.log(`Listening on port ${port}`);
 });
+/* 
+const io = new Server(server); // Create a websocket server
+
+io.on('connection', (socket) => {
+	console.log('A user connected');
+}); */
