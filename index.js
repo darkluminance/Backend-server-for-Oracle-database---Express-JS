@@ -227,6 +227,82 @@ async function getDriversWithinRange(req, res, lat, lng) {
 //
 //
 //
+//Create account for Clientt
+async function UserClient(req, res, data) {
+	const query = `insert into userr (u_id, user_name, admin_id,Name_Fname,Name_Lname,passwordd,dob,age,Phone_No,user_typ) values('${data[0]}','${data[1]}','${data[2]}','${data[3]}','${data[4]}','${data[5]}',to_date('${data[6]}','yyyy-mm-dd'), TRUNC(TO_NUMBER(SYSDATE - TO_DATE('${data[6]}','yyyy-mm-dd')) / 365.25),'${data[7]}','${data[8]}')`;
+	/* console.log(data);
+	console.log(query); */
+	try {
+		connection = await oracledb.getConnection(dbconnection);
+		result = await connection.execute(query, {}, { autoCommit: true });
+	} catch (error) {
+	} finally {
+		if (connection) {
+			await connection.close();
+			// console.log('Connection ended');
+		}
+		res.status(200).send(result);
+	}
+}
+
+//Create account for the driver
+async function UserDriver(req, res, data, info) {
+	const query = `insert into userr (u_id, user_name, admin_id, Name_Fname, Name_Lname, passwordd, dob,age, Phone_No, user_typ) 
+					values('${data[0]}','${data[1]}','${data[2]}','${data[3]}','${data[4]}','${data[5]}',to_date('${data[6]}','yyyy-mm-dd'), TRUNC(TO_NUMBER(SYSDATE - TO_DATE('${data[6]}','yyyy-mm-dd')) / 365.25), '${data[7]}','${data[8]}')`;
+
+	const query1 = `update driver
+					set NID = '${info[1]}',
+					COID = '${info[2]}',
+					Car_ID = '${info[3]}'
+					where U_ID ='${info[0]}'`;
+
+	try {
+		connection = await oracledb.getConnection(dbconnection);
+		console.log('Connected');
+
+		result = await connection.execute(query, {}, { autoCommit: true });
+		result1 = await connection.execute(query1, {}, { autoCommit: true });
+	} catch (error) {
+	} finally {
+		if (connection) {
+			await connection.close();
+			console.log('Connection ended');
+		}
+		res.status(200).send(result);
+	}
+}
+
+//Try to sign in using username and password
+async function getsignIn(req, res, username, password) {
+	const query = `select u_id
+					from userr
+					where user_name = '${username}' and passwordd = '${password}'`;
+
+	try {
+		connection = await oracledb.getConnection(dbconnection);
+		result = await connection.execute(query);
+
+		if (result.rows.length === 0) {
+			throw new Error('Invalid username or password');
+		} else {
+			let response = result.rows[0][0];
+
+			res.status(200).send({
+				message: 'Success',
+				uid: response,
+			});
+		}
+	} catch (error) {
+		res.status(401).send({
+			message: 'Invalid username or password',
+		});
+	} finally {
+		if (connection) {
+			await connection.close();
+		}
+	}
+}
+
 //
 //
 //--------- REQUESTS------------------
@@ -235,6 +311,79 @@ async function getDriversWithinRange(req, res, lat, lng) {
 //The parameters req and res means request and respose.
 //Request means the data we get from the browser. req.body will store any data we send from the frontend for inserting into database.
 //Response will store the data we get from the database and send it back to the browser. In this case, the data we insert will be sent back.
+
+app.post('/login', (request, response) => {
+	const username = request.body.username;
+	const password = request.body.password;
+
+	console.log(`${username}, ${password}`);
+
+	getsignIn(request, response, username, password);
+});
+
+app.post('/insertuserclient', (req, res) => {
+	data = req.body;
+	const userid = Date.now();
+	const username = data.user_name;
+	const adminid = data.admin_id;
+	const fname = data.Name_Fname;
+	const lname = data.Name_Lname;
+	const pass = data.password;
+	const dob = data.dob;
+	const phn = data.Phone_No;
+	const usertyp = data.user_typ;
+	const senddata = [
+		userid,
+		username,
+		adminid,
+		fname,
+		lname,
+		pass,
+		dob,
+		phn,
+		usertyp,
+	];
+	console.log(`from app post ${senddata}`);
+	UserClient(req, res, senddata);
+});
+
+app.post('/insertuserdriver', (req, res) => {
+	data = req.body;
+	console.log(data);
+	const userid = Date.now();
+	const username = data.user_name;
+	const adminid = data.admin_id;
+	const fname = data.Name_Fname;
+	const lname = data.Name_Lname;
+	const pass = data.password;
+	const dob = data.dob;
+	const phn = data.Phone_No;
+	const usertyp = data.user_typ;
+
+	const nid = data.nid;
+	const cownid = data.CownID;
+	const carid = data.carID;
+
+	const dinfo = [userid, nid, cownid, carid];
+	const senddata = [
+		userid,
+		username,
+		adminid,
+		fname,
+		lname,
+		pass,
+		dob,
+		phn,
+		usertyp,
+	];
+	console.log(dinfo);
+	console.log(senddata);
+	UserDriver(req, res, senddata, dinfo);
+	console.log(`${senddata}`);
+});
+
+//
+//
 app.post('/userr', (req, res) => {
 	data = req.body;
 
@@ -284,6 +433,16 @@ app.post('/updateuserlocation', (req, res) => {
 //So any data in this field will be stored in lat variable
 //Example in ---------> /getdriverlocation/23/90   ......... 23 will be stored in lat and 90 will be stored in lng
 //The variables can be accessed using the req.params.<the variable name> command.
+
+app.get('/getsignindata/:username/:password', (request, response) => {
+	const username = request.params.username;
+	const password = request.params.password;
+
+	console.log(`HAGU ${username}, ${password}`);
+
+	getsignIn(request, response, username, password);
+});
+
 app.get('/getdriverlocation/:lat/:lng', (req, res) => {
 	const lattitude = req.params.lat;
 	const longitude = req.params.lng;
@@ -355,9 +514,45 @@ app.get('/getu', (req, res) => {
 const server = app.listen(port, () => {
 	console.log(`Listening on port ${port}`);
 });
-/* 
-const io = new Server(server); // Create a websocket server
 
+/* // Expose the node_modules folder as static resources (to access socket.io.js in the browser)
+app.use('/static', express.static('node_modules')); */
+
+//------------------------------ WEBSOCKET PART --------------------------------------------------
+
+//Set up websocket in this server with access to cors policy
+const io = new Server(server, {
+	cors: {
+		origin: '*',
+		methods: ['GET', 'POST'],
+	},
+}); // Create a websocket server
+
+//When any user connects to this server
 io.on('connection', (socket) => {
-	console.log('A user connected');
-}); */
+	console.log('A user connected with socket id ', socket.id);
+	//
+	//
+	socket.on('disconnect', function () {
+		console.log('A user with ID: ' + socket.id + ' disconnected');
+	});
+	//
+	//
+	socket.on('request', (soket_id, tripdata) => {
+		console.log('Request found from ', soket_id, tripdata);
+		socket.broadcast.emit('request', soket_id, tripdata);
+	});
+	//
+	//
+	socket.on('accepted', (socet_id, ddata) => {
+		socket.broadcast.emit('accepted', socet_id, ddata);
+	});
+	//
+	//
+	socket.on('cancelled', (socet_id) => {
+		socket.broadcast.emit('cancelled', socet_id);
+	});
+	//
+	//
+	//
+});
